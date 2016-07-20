@@ -83,7 +83,7 @@ def test_generate_token(request, response, os, hashlib, get_conf):
     get_conf.return_value = MOCK_CONF
     hashlib.sha256.return_value.hexdigest.return_value = 'abc'
     generate_csrf_token()
-    response.set_cookie.assert_called_once_with('bar', b'abc',
+    response.set_cookie.assert_called_once_with('bar', 'abc',
                                                 path=b'/foo/bar',
                                                 secret='foo', max_age=200)
     assert request.csrf_token == 'abc'
@@ -120,6 +120,7 @@ def test_old_csrf_token(request, response, generate_csrf_token, get_conf):
                                                 path=mock.ANY,
                                                 secret=mock.ANY,
                                                 max_age=mock.ANY)
+
 
 @mock.patch(MOD + 'get_conf')
 @mock.patch(MOD + 'generate_csrf_token')
@@ -249,4 +250,3 @@ def test_csrf_token():
     assert res.text == 'success'
     # New token is set
     assert test_app.cookies['_csrf_token'] != token
-
