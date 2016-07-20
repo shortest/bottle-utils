@@ -50,10 +50,12 @@ def generate_csrf_token():
     secret, token_name, path, expires = get_conf()
     sha256 = hashlib.sha256()
     sha256.update(os.urandom(8))
-    token = sha256.hexdigest().encode(ENCODING)
+    token = sha256.hexdigest()
+
     response.set_cookie(token_name, token, path=path,
                         secret=secret, max_age=expires)
-    request.csrf_token = token.decode(ENCODING)
+
+    request.csrf_token = token
 
 
 def csrf_token(func):
