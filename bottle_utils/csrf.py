@@ -98,7 +98,7 @@ def csrf_token(func):
             # We will reuse existing tokens
             response.set_cookie(token_name, token, path=path,
                                 secret=secret, max_age=expires)
-            request.csrf_token = token.decode('utf8')
+            request.csrf_token = token
         else:
             generate_csrf_token()
         # Pages with CSRF tokens should not be cached
