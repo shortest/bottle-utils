@@ -27,6 +27,9 @@ def get_conf():
     csrf_secret = conf['csrf.secret']
     csrf_token_name = str(conf.get('csrf.token_name', CSRF_TOKEN))
     csrf_path = conf.get('csrf.path', ROOT).encode(ENCODING)
+    if not isinstance(csrf_path, str):
+        csrf_path = csrf_path.decode(ENCODING)
+
     try:
         cookie_expires = int(conf.get('csrf.expires', EXPIRES))
     except ValueError:
