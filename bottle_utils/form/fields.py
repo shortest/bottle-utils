@@ -1,4 +1,3 @@
-from bottle_utils import html
 from bottle_utils.common import basestring, unicode
 
 try:
@@ -8,6 +7,7 @@ except ImportError:
 
 from .exceptions import ValidationError
 from .validators import DateValidator
+
 
 class ErrorMixin(object):
     """
@@ -30,7 +30,19 @@ class ErrorMixin(object):
         return message
 
 
-class DormantField(object):
+class Ordered(object):
+    #: Counter attribute holding the number of fields found on a form, used
+    #: to assign indexes to individual fields, so their order can be kept
+    _counter = 0
+
+    def __init__(self):
+        #: Assign index to the instantiated field and increment the shared
+        #: counter, so the next field will get a higher index
+        self._order = self._counter
+        Ordered._counter += 1
+
+
+class DormantField(Ordered):
     """
     Proxy for unbound fields. This class holds the the field constructor
     arguments until the data can be bound to it.
@@ -39,6 +51,7 @@ class DormantField(object):
     """
 
     def __init__(self, field_cls, args, kwargs):
+        super(DormantField, self).__init__()  # needed to apply ordering
         self.field_cls = field_cls
         self.args = args
         self.kwargs = kwargs
@@ -47,7 +60,7 @@ class DormantField(object):
         return self.field_cls(name=name, *self.args, **self.kwargs)
 
 
-class Field(ErrorMixin):
+class Field(Ordered, ErrorMixin):
     """
     Form field base class. This class provides the base functionality for all
     form fields.
@@ -57,8 +70,8 @@ class Field(ErrorMixin):
     The ``validators`` argument is used to specify the validators that will be
     used on the field data.
 
-    If any data should be bound to a field, the ``value`` argument can be used to
-    specify it. Value can be a callable, in which case it is called and its
+    If any data should be bound to a field, the ``value`` argument can be used
+    to specify it. Value can be a callable, in which case it is called and its
     return value used as ``value``.
 
     The ``name`` argument is used to specify the field name.
@@ -95,6 +108,8 @@ class Field(ErrorMixin):
 
     def __init__(self, label=None, validators=None, value=None, name=None,
                  messages={}, **options):
+        super(Field, self).__init__()  # needed to apply ordering
+
         #: Field name
         self.name = name
 
@@ -152,9 +167,10 @@ class Field(ErrorMixin):
         argument.
         """
         try:
-            self.processed_value = self.parse(self.value)
+            self.processed_value = self.parse(self.processed_value)
         except ValueError as exc:
-            self._error = ValidationError('generic', {'value': self.value})
+            self._error = ValidationError('generic',
+                                          {'value': self.processed_value})
             return False
 
         for validate in self.validators:
@@ -327,13 +343,21 @@ class BooleanField(Field):
                                            value=value,
                                            **options)
 
+    @property
+    def checked(self):
+        if not self.is_value_bound:
+            return self.default
+        # when value is bound to the field, it must match the expected value
+        return self.parse(self.value)
+
     def parse(self, value):
         if not value or isinstance(value, basestring):
-            self.default = self.expected_value == value
-        else:
-            self.default = self.expected_value in value
-
-        return self.default
+            return self.expected_value == value
+        # Bool values may be passed to it as initial values
+        if isinstance(value, bool):
+            return value
+        # Check if value is present in collection
+        return self.expected_value in value
 
 
 class SelectField(Field):
